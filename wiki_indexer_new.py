@@ -52,7 +52,7 @@ def removeStopWords(data):
 def stemming(text):
     stemmer = SnowballStemmer("english")
     text = text.split()
-    stemmed_words = [stemmer.stem(word) for word in text]
+    stemmed_words = [stemmer.stem(word) for word in text if len(word) < 30]
     return stemmed_words
 
 def generateTokens(data):
@@ -325,7 +325,8 @@ def mergeIndex(partial_index_path):
     heap = [(list(word_info[e].keys())[0],e) for e in range(len(word_info))]
     heapq.heapify(heap)
     opfhandle = open(partial_index_path+"merged_index", "w")
-    offsethandle = open(partial_index_path+"offset_index", "w")
+    #offsethandle = open(partial_index_path+"offset_index", "w")
+    offset_dict = {}
     offset = 0
     pre = ""
     while len(heap) > 0:
@@ -335,8 +336,8 @@ def mergeIndex(partial_index_path):
             temp_key = val[0]
             pass
         elif  list(pre.keys())[0] != val[0]:
-            if offset % 10 == 0:
-                offsethandle.write("{"+val[0] +":"+ str(offset) +"}\n")
+            #offsethandle.write("{"+val[0] +":"+ str(offset) +"}\n")
+            offset_dict[val[0]] = offset
             pre[temp_key]["idf"] = math.log(doc_count / pre[temp_key]["fq"])
             opfhandle.write(str(pre)+"\n")
             pre = word_info[val[1]]
@@ -357,9 +358,8 @@ def mergeIndex(partial_index_path):
            word_info[val[1]] = new_word
            heap.append((list(new_word.keys())[0], val[1]))
         heapq.heapify(heap)
-    if offset % 10 != 0:
-        offsethandle.write("{"+val[0] +":"+ str(offset) +"}\n")
     opfhandle.write(str(pre)+"\n")
+    pickleDumpFile(partial_index_path+"offset_index", offset_dict)
 
 class XMLHelper(xml.sax.handler.ContentHandler):
   def __init__(self):
@@ -438,6 +438,6 @@ if  __name__ == '__main__':
     f = open(metadata_path + "doc_count", "w")
     f.write(str(doc_count))
     f.close()
-    pickleDumpFile(metadata_path+"metadata", doc_id_title)
+    pickleDumpFile(metadata_path+"id_title_map", doc_id_title)
     mergeIndex(index_dir_path)
     print(time.process_time() - start_time)

@@ -327,7 +327,7 @@ def mergeIndex(partial_index_path):
     opfhandle = open(partial_index_path+"merged_index", "w")
     #offsethandle = open(partial_index_path+"offset_index", "w")
     offset_dict = {}
-    offset = 0
+    offset = 1
     pre = ""
     while len(heap) > 0:
         val = heapq.heappop(heap)

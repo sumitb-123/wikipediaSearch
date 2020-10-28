@@ -1,6 +1,6 @@
 import nltk
-#nltk.download('punkt')
-#nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('stopwords')
 from xml.sax.handler import ContentHandler
 from nltk.stem.snowball import SnowballStemmer
 from collections import defaultdict
@@ -173,8 +173,8 @@ def separateBody(text):
        strt = text.find(patr)
     if strt != -1:
        text = text[0:strt]
-    data = re.sub('\{\{v?cite[^}]*\}\}', '', text)
-    data = re.sub(r'<ref.[^/>]*?/>', r'', data)
+    data = re.sub('\{\{v?cite[^}]*\}\}', ' ', text)
+    data = re.sub(r'<ref.[^/>]*?/>', r' ', data)
     data = re.sub(r'<ref(.|\n)*?/ref>', r' ', data)
     data = re.sub(r'\{\{infobox.[^}}]*\}\}', r' ', data)
     data = re.sub(r'\{\{.[^}}]*\}\}', r' ', data)
@@ -306,6 +306,9 @@ def wordFreqDoc(field_data):
 #Merging the partial index(sorted) files using k way merge
 def mergeIndex(partial_index_path):
     global doc_count
+    global index_line
+    PostingList = defaultdict(dict)
+    line_count = 0;
     lst = listAllFiles(partial_index_path)
     file_handler = []
     exhausted    = [False for i in range(len(lst))]
@@ -324,11 +327,10 @@ def mergeIndex(partial_index_path):
     #putiing all keys and index(file handle) into heap
     heap = [(list(word_info[e].keys())[0],e) for e in range(len(word_info))]
     heapq.heapify(heap)
-    opfhandle = open(partial_index_path+"merged_index", "w")
-    #offsethandle = open(partial_index_path+"offset_index", "w")
     offset_dict = {}
     offset = 1
     pre = ""
+    temp_key = ""
     while len(heap) > 0:
         val = heapq.heappop(heap)
         if pre == "":
@@ -336,13 +338,22 @@ def mergeIndex(partial_index_path):
             temp_key = val[0]
             pass
         elif  list(pre.keys())[0] != val[0]:
-            #offsethandle.write("{"+val[0] +":"+ str(offset) +"}\n")
-            offset_dict[val[0]] = offset
-            pre[temp_key]["idf"] = math.log(doc_count / pre[temp_key]["fq"])
-            opfhandle.write(str(pre)+"\n")
+            if (temp_key.isdigit() and len(temp_key) <= 4 and temp_key[0] != '0') or (temp_key.isalpha()) or (len(temp_key) <= 4 and temp_key[0] != '0'): 
+                line_count += 1
+                offset_dict[val[0]]  = offset
+                pre[temp_key]["idf"] = math.log(doc_count / pre[temp_key]["fq"])
+                PostingList[temp_key] = pre[temp_key]
+                if line_count == index_line:
+                    print("posting list size ",line_count)
+                    print("offset size       ",offset)
+                    flname = str(int(offset / index_line))
+                    with open(partial_index_path+flname, "wb") as handle:
+                        pickle.dump(PostingList, handle, protocol=-1)
+                    line_count  = 0
+                    PostingList = defaultdict(dict)
+                offset     += 1
             pre = word_info[val[1]]
             temp_key = val[0]
-            offset += 1
         else:
             for el in word_info[val[1]][val[0]].keys():
                 if el == "fq":
@@ -358,7 +369,12 @@ def mergeIndex(partial_index_path):
            word_info[val[1]] = new_word
            heap.append((list(new_word.keys())[0], val[1]))
         heapq.heapify(heap)
-    opfhandle.write(str(pre)+"\n")
+    pre[temp_key]["idf"] = math.log(doc_count / pre[temp_key]["fq"])
+    PostingList[temp_key] = pre[temp_key] 
+    flname = str(int(offset / index_line) + 1)
+    with open(partial_index_path+flname, "wb") as handle:
+         data = PostingList
+         pickle.dump(data, handle, protocol=-1)
     pickleDumpFile(partial_index_path+"offset_index", offset_dict)
 
 class XMLHelper(xml.sax.handler.ContentHandler):
@@ -412,7 +428,8 @@ def parserHandler(xml_file_path, index_target_path):
 
 if  __name__ == '__main__':
     #counter starts
-    start_time   = time.process_time()
+    start_time     = time.process_time()
+    index_line     = 200000 
     xml_dir_path   = sys.argv[1]
     index_dir_path = sys.argv[2]
     metadata_path  = sys.argv[3]

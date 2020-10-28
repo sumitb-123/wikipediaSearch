@@ -1,0 +1,6 @@
+3, talk tend 2019 100
+10, i:100 t:world cup b:2019
+10, l:new t:india b:1984
+10, world sachin tendulkar 100
+12, mahendra singh dhoni
+100, Sudebnik

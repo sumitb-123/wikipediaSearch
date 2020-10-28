@@ -1,6 +1,6 @@
 import nltk
-#nltk.download('punkt')
-#nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('stopwords')
 from xml.sax.handler import ContentHandler
 from nltk.stem.snowball import SnowballStemmer
 from collections import defaultdict
@@ -45,8 +45,6 @@ def pickleDumpFile(dumpPath,postlist):
 
 def removeStopWords(data):
     stop_words = set(stopwords.words('english'))
-    newStopWords = ['a','b','c','d','e','f','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z', 'ref','cite','0','1','2','3','4','5','6','7','8','9']
-    stop_words.update(newStopWords)
     return [word for word in data if word not in stop_words]
 
 def stemming(text):
@@ -60,7 +58,11 @@ def generateTokens(data):
     global doc_tokens
     data = data.encode('ascii', errors='ignore').decode()
     data = re.sub(r'[^A-Za-z0-9]+', r' ', data)
-    tokens = nltk.word_tokenize(data)
+    ntokens = nltk.word_tokenize(data)
+    tokens = []
+    for temp_key in ntokens:
+      if (temp_key.isdigit() and len(temp_key) <= 4 and temp_key[0] != '0') or (temp_key.isalpha() and len(temp_key) > 2) or (len(temp_key) <= 4 and temp_key[0] != '0'):
+          tokens.append(temp_key)
     no_of_tokens += len(tokens)
     doc_tokens   += len(tokens)
     return tokens
@@ -184,11 +186,20 @@ def separateBody(text):
     data = frequecyCounter(data)
     return data
 
+def cleanText(text):
+    text = re.sub('\n', r' ', text)
+    text = re.sub('\{\{v?(c|C)ite[^}]*?\}\}', r' ', text)
+    text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', r' ', text)
+    text = re.sub(r'<ref[^/>]*?/>', r' ', text)
+    text = re.sub(r'<ref(.|\n)*?/ref>', r' ', text)
+    text = re.sub(r'<!--.[^-->]*-->',  r' ', text)
+    return text.lower()
+
 def textProcessHelper(title, text, id):
     #dict of all fields
     field_dict = {}
     title = title.lower()
-    text  = text.lower()
+    text  = cleanText(text)
     global doc_id_title
     global doc_count
     doc_count += 1
@@ -211,7 +222,6 @@ def updatePostList(field_data, field, field_id, doc_title):
     for key in field_data[field].keys():
         if field_id not in PostList[key].keys():
            PostList[key][field_id] = []
-        #PostList[key][field_id].append((field_data["id"], field_data[field][key]))
         tf = float("{:.3f}".format(weight[field_id]*math.log(1 + field_data[field][key]/float(len(field_data[field])))))
         PostList[key][field_id].append((field_data["id"], tf))
         pass
@@ -429,20 +439,21 @@ def parserHandler(xml_file_path, index_target_path):
 if  __name__ == '__main__':
     #counter starts
     start_time     = time.process_time()
-    index_line     = 200000 
-    xml_dir_path   = sys.argv[1]
-    index_dir_path = sys.argv[2]
-    metadata_path  = sys.argv[3]
+    index_line     = 10000 
+    xml_dir_path   = sys.argv[1]           # xml dump path
+    index_dir_path = sys.argv[2]           # index dir path
+    metadata_path  = sys.argv[3]           # metadata dump path
     doc_id_title   = {}
     token_doc_freq = {}
     all_words      = {}
     no_of_tokens   = 0
     doc_tokens     = 0
     doc_count      = 0
-    thread_count   = 0
+    thread_count   = 25
     PostList       = defaultdict(dict)
     #getting list of all files
     xml_file_list  = listAllFiles(xml_dir_path)
+    print(xml_file_list)
     while len(xml_file_list) > 0:
         xml_file = xml_file_list.pop()
         thread_count += 1

@@ -1,2 +1,2 @@
 # wikipediaSearch
-Search Engine on wikipedia data
+Ranking based search engine on wikipedia data of 45 GB.
